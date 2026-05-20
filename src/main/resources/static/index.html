@@ -63,6 +63,13 @@
             color: #111827;
         }
         .btn-secondary:hover { background: #d1d5db; }
+        .btn-back {
+            background: transparent;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            margin-right: 8px;
+        }
+        .btn-back:hover { background: #f3f4f6; }
         button:disabled {
             opacity: 0.55;
             cursor: not-allowed;
@@ -143,6 +150,7 @@
         <p id="lessonConcept" class="subtle"></p>
         <div id="quizError" class="error hidden"></div>
         <form id="quizForm"></form>
+        <button id="quizBackBtn" class="btn-back" type="button">Back</button>
         <button id="submitBtn" class="btn-primary" disabled>Submit Quiz</button>
     </div>
 
@@ -153,6 +161,7 @@
         <div id="breakPrompt" class="break-prompt hidden"></div>
         <h3>Per-question breakdown</h3>
         <div id="resultList"></div>
+        <button id="resultBackBtn" class="btn-back" type="button">Back</button>
         <button id="tryAnotherBtn" class="btn-secondary">Try Another Lesson</button>
     </div>
 </div>
@@ -171,9 +180,12 @@
     const resultList = document.getElementById("resultList");
     const breakPrompt = document.getElementById("breakPrompt");
     const quizError = document.getElementById("quizError");
+    const quizBackBtn = document.getElementById("quizBackBtn");
+    const resultBackBtn = document.getElementById("resultBackBtn");
 
     let currentLesson = null;
     let currentQuestions = [];
+    let lastResult = null;
 
     document.querySelectorAll(".lesson-btn").forEach((button) => {
         button.addEventListener("click", async () => {
@@ -189,19 +201,61 @@
     submitBtn.addEventListener("click", async () => {
         await submitQuiz();
     });
+    quizBackBtn.addEventListener("click", () => history.back());
+    resultBackBtn.addEventListener("click", () => history.back());
 
-    function resetView() {
+    globalThis.addEventListener("popstate", async (event) => {
+        const state = event.state || { view: "lessons" };
+
+        if (state.view === "lessons") {
+            resetView(false);
+            return;
+        }
+
+        if (state.view === "quiz") {
+            if (currentLesson && currentLesson.lessonId === state.lessonId) {
+                renderQuiz(false);
+                return;
+            }
+            if (state.lessonId) {
+                await loadLesson(state.lessonId, false);
+            }
+            return;
+        }
+
+        if (state.view === "results") {
+            if (
+                lastResult &&
+                currentLesson &&
+                currentLesson.lessonId === state.lessonId
+            ) {
+                renderResults(lastResult, false);
+                return;
+            }
+            if (state.lessonId) {
+                await loadLesson(state.lessonId, false);
+            }
+        }
+    });
+
+    history.replaceState({ view: "lessons" }, "", globalThis.location.pathname);
+
+    function resetView(pushHistory = true) {
         currentLesson = null;
         currentQuestions = [];
+        lastResult = null;
         quizForm.innerHTML = "";
         submitBtn.disabled = true;
         quizCard.classList.add("hidden");
         resultCard.classList.add("hidden");
         lessonPicker.classList.remove("hidden");
         clearError();
+        if (pushHistory) {
+            history.pushState({ view: "lessons" }, "", globalThis.location.pathname);
+        }
     }
 
-    async function loadLesson(lessonId) {
+    async function loadLesson(lessonId, pushHistory = true) {
         clearError();
         try {
             const response = await fetch(`/api/lessons/${lessonId}/questions`);
@@ -211,13 +265,13 @@
             }
             currentLesson = await response.json();
             currentQuestions = currentLesson.questions || [];
-            renderQuiz();
+            renderQuiz(pushHistory);
         } catch (error) {
             showError(error.message);
         }
     }
 
-    function renderQuiz() {
+    function renderQuiz(pushHistory = true) {
         lessonPicker.classList.add("hidden");
         resultCard.classList.add("hidden");
         quizCard.classList.remove("hidden");
@@ -251,6 +305,14 @@
 
         quizForm.onchange = updateSubmitState;
         updateSubmitState();
+
+        if (pushHistory) {
+            history.pushState(
+                { view: "quiz", lessonId: currentLesson.lessonId },
+                "",
+                globalThis.location.pathname
+            );
+        }
     }
 
     function updateSubmitState() {
@@ -292,7 +354,8 @@
         }
     }
 
-    function renderResults(result) {
+    function renderResults(result, pushHistory = true) {
+        lastResult = result;
         quizCard.classList.add("hidden");
         resultCard.classList.remove("hidden");
 
@@ -314,6 +377,14 @@
             row.innerHTML = `<strong>Question ${idx + 1}:</strong> ${status}`;
             resultList.appendChild(row);
         });
+
+        if (pushHistory) {
+            history.pushState(
+                { view: "results", lessonId: currentLesson.lessonId },
+                "",
+                globalThis.location.pathname
+            );
+        }
     }
 
     function showError(message) {
