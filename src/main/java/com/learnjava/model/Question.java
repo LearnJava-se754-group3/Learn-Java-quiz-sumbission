@@ -1,5 +1,6 @@
 package com.learnjava.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -13,10 +14,15 @@ public class Question {
 
     private Long lessonId;
     private String text;
+    @Column(name = "option_a")
     private String optionA;
+    @Column(name = "option_b")
     private String optionB;
+    @Column(name = "option_c")
     private String optionC;
+    @Column(name = "option_d")
     private String optionD;
+    @Column(name = "correct_option")
     private String correctOption;
 
     public Long getId() {
