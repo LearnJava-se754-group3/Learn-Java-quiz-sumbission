@@ -311,3 +311,50 @@ After implementation, verify manually:
 - Do not hardcode correct answers in the service — always fetch from the Question table
 - All timestamps should use `LocalDateTime.now()`
 - Return meaningful messages in the response: "Great work! Take a 5-minute break." when breakPromptTriggered is true, "Keep going!" otherwise
+
+---
+
+## Frontend UI (index.html)
+
+Place a single static HTML file at `src/main/resources/static/index.html`.
+Spring Boot serves static files from this directory automatically (no extra config needed).
+The page is accessible at `http://localhost:8080`.
+
+### What the UI must do
+
+On page load:
+- Show a lesson selector (dropdown or 3 buttons for Lesson 1, 2, 3)
+
+On lesson select:
+- Call `GET /api/lessons/{lessonId}/questions` and render:
+  - Lesson title and concept
+  - All 5 questions, each with 4 radio button options (A/B/C/D)
+  - A `Submit Quiz` button (disabled until all 5 questions are answered)
+
+On submit:
+- Collect selected answers and call `POST /api/quiz/submit`
+- Display:
+  - Score (for example: `4 / 5`)
+  - Pass or Fail banner
+  - Per-question breakdown (correct ✓ / incorrect ✗ with the correct answer shown)
+  - Break prompt message if `breakPromptTriggered` is true, displayed prominently
+    - Example highlighted box: `🌿 Take a 5-minute break before your next lesson.`
+  - A `Try Another Lesson` button to reset and pick a new lesson
+
+### UI requirements
+
+- Plain HTML + CSS + vanilla JavaScript only (no React, npm, or build step)
+- No external CDN dependencies (must work fully offline)
+- Generate a random `userId` on page load:
+  - `user_` + `Math.random().toString(36).substr(2, 9)`
+  - Reuse this ID for the current session
+  - Display it subtly on the page so the marker can see it
+- Use LearnJava green (`#2ecc71`) as the primary colour
+- The break prompt box must be visually distinct (green background and bold text) as the Digital Wellbeing feature
+
+### What the UI does not need
+
+- No login screen
+- No persistent user accounts
+- No lesson teaching content (only quiz questions and results)
+- No animations beyond basic CSS transitions

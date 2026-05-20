@@ -13,11 +13,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.learnjava.dto.AnswerDto;
+import com.learnjava.dto.LessonQuestionDto;
+import com.learnjava.dto.LessonQuestionsResponse;
 import com.learnjava.dto.QuizResultItem;
 import com.learnjava.dto.QuizSubmissionRequest;
 import com.learnjava.dto.QuizSubmissionResponse;
 import com.learnjava.exception.InvalidSubmissionException;
 import com.learnjava.exception.LessonNotFoundException;
+import com.learnjava.model.Lesson;
 import com.learnjava.model.Question;
 import com.learnjava.model.UserProgress;
 import com.learnjava.repository.LessonRepository;
@@ -105,6 +108,22 @@ public class QuizService {
         return response;
     }
 
+    @Transactional(readOnly = true)
+    public LessonQuestionsResponse getLessonQuestions(Long lessonId) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new LessonNotFoundException("Lesson not found: " + lessonId));
+
+        List<Question> questions = fetchAndValidateLessonQuestions(lessonId);
+        List<LessonQuestionDto> questionDtos = questions.stream().map(this::toLessonQuestionDto).toList();
+
+        LessonQuestionsResponse response = new LessonQuestionsResponse();
+        response.setLessonId(lesson.getId());
+        response.setTitle(lesson.getTitle());
+        response.setConcept(lesson.getConcept());
+        response.setQuestions(questionDtos);
+        return response;
+    }
+
     private void validateRequest(QuizSubmissionRequest request) {
         if (request == null || request.getLessonId() == null || request.getUserId() == null) {
             throw new InvalidSubmissionException(INVALID_SUBMISSION_MESSAGE);
@@ -140,5 +159,16 @@ public class QuizService {
             throw new InvalidSubmissionException(INVALID_SUBMISSION_MESSAGE);
         }
         return answerMap;
+    }
+
+    private LessonQuestionDto toLessonQuestionDto(Question question) {
+        LessonQuestionDto dto = new LessonQuestionDto();
+        dto.setQuestionId(question.getId());
+        dto.setText(question.getText());
+        dto.setOptionA(question.getOptionA());
+        dto.setOptionB(question.getOptionB());
+        dto.setOptionC(question.getOptionC());
+        dto.setOptionD(question.getOptionD());
+        return dto;
     }
 }

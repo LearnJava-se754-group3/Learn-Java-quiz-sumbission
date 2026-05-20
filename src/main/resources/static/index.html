@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LearnJava Quiz</title>
+    <style>
+        :root {
+            --primary: #2ecc71;
+            --primary-dark: #27ae60;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --bg: #f7f9fb;
+            --card: #ffffff;
+            --danger: #ef4444;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        .container {
+            max-width: 920px;
+            margin: 24px auto;
+            padding: 0 16px;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 10px;
+            padding: 18px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            margin-bottom: 16px;
+        }
+        h1, h2, h3 { margin-top: 0; }
+        .subtle {
+            color: var(--muted);
+            font-size: 0.92rem;
+            margin-top: -8px;
+        }
+        .lesson-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.12s ease, opacity 0.2s ease;
+        }
+        button:hover { transform: translateY(-1px); }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #111827;
+        }
+        .btn-secondary:hover { background: #d1d5db; }
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .question {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 12px;
+            margin-top: 12px;
+        }
+        .option {
+            display: block;
+            margin: 6px 0;
+        }
+        .status {
+            margin-top: 10px;
+            color: var(--muted);
+        }
+        .banner {
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            margin: 10px 0;
+            display: inline-block;
+        }
+        .banner.pass {
+            color: #065f46;
+            background: #d1fae5;
+        }
+        .banner.fail {
+            color: #7f1d1d;
+            background: #fee2e2;
+        }
+        .break-prompt {
+            background: #d9fbe8;
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            padding: 12px;
+            font-weight: 700;
+            color: #065f46;
+            margin: 12px 0;
+        }
+        .result-item {
+            padding: 8px 0;
+            border-bottom: 1px dashed #e5e7eb;
+        }
+        .correct { color: #15803d; }
+        .incorrect { color: var(--danger); }
+        .hidden { display: none; }
+        .error {
+            color: #7f1d1d;
+            background: #fee2e2;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h1>LearnJava Quiz Submission</h1>
+        <p class="subtle">Session userId: <span id="userIdDisplay"></span></p>
+    </div>
+
+    <div id="lessonPicker" class="card">
+        <h2>Select a Lesson</h2>
+        <div class="lesson-buttons">
+            <button class="btn-primary lesson-btn" data-lesson-id="1">Lesson 1</button>
+            <button class="btn-primary lesson-btn" data-lesson-id="2">Lesson 2</button>
+            <button class="btn-primary lesson-btn" data-lesson-id="3">Lesson 3</button>
+        </div>
+        <p class="status">Choose one lesson to load 5 quiz questions.</p>
+    </div>
+
+    <div id="quizCard" class="card hidden">
+        <h2 id="lessonTitle">Lesson</h2>
+        <p id="lessonConcept" class="subtle"></p>
+        <div id="quizError" class="error hidden"></div>
+        <form id="quizForm"></form>
+        <button id="submitBtn" class="btn-primary" disabled>Submit Quiz</button>
+    </div>
+
+    <div id="resultCard" class="card hidden">
+        <h2>Quiz Result</h2>
+        <div id="scoreText"></div>
+        <div id="passFailBanner"></div>
+        <div id="breakPrompt" class="break-prompt hidden"></div>
+        <h3>Per-question breakdown</h3>
+        <div id="resultList"></div>
+        <button id="tryAnotherBtn" class="btn-secondary">Try Another Lesson</button>
+    </div>
+</div>
+
+<script>
+    const userId = "user_" + Math.random().toString(36).slice(2, 11);
+    document.getElementById("userIdDisplay").textContent = userId;
+
+    const lessonPicker = document.getElementById("lessonPicker");
+    const quizCard = document.getElementById("quizCard");
+    const quizForm = document.getElementById("quizForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const resultCard = document.getElementById("resultCard");
+    const scoreText = document.getElementById("scoreText");
+    const passFailBanner = document.getElementById("passFailBanner");
+    const resultList = document.getElementById("resultList");
+    const breakPrompt = document.getElementById("breakPrompt");
+    const quizError = document.getElementById("quizError");
+
+    let currentLesson = null;
+    let currentQuestions = [];
+
+    document.querySelectorAll(".lesson-btn").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const lessonId = Number(button.dataset.lessonId);
+            await loadLesson(lessonId);
+        });
+    });
+
+    document.getElementById("tryAnotherBtn").addEventListener("click", () => {
+        resetView();
+    });
+
+    submitBtn.addEventListener("click", async () => {
+        await submitQuiz();
+    });
+
+    function resetView() {
+        currentLesson = null;
+        currentQuestions = [];
+        quizForm.innerHTML = "";
+        submitBtn.disabled = true;
+        quizCard.classList.add("hidden");
+        resultCard.classList.add("hidden");
+        lessonPicker.classList.remove("hidden");
+        clearError();
+    }
+
+    async function loadLesson(lessonId) {
+        clearError();
+        try {
+            const response = await fetch(`/api/lessons/${lessonId}/questions`);
+            if (!response.ok) {
+                const errBody = await response.json().catch(() => ({}));
+                throw new Error(errBody.message || "Failed to load lesson questions.");
+            }
+            currentLesson = await response.json();
+            currentQuestions = currentLesson.questions || [];
+            renderQuiz();
+        } catch (error) {
+            showError(error.message);
+        }
+    }
+
+    function renderQuiz() {
+        lessonPicker.classList.add("hidden");
+        resultCard.classList.add("hidden");
+        quizCard.classList.remove("hidden");
+
+        document.getElementById("lessonTitle").textContent =
+            `${currentLesson.title}`;
+        document.getElementById("lessonConcept").textContent =
+            `Concept: ${currentLesson.concept}`;
+
+        quizForm.innerHTML = "";
+        currentQuestions.forEach((q, index) => {
+            const questionBlock = document.createElement("div");
+            questionBlock.className = "question";
+
+            const title = document.createElement("p");
+            title.innerHTML = `<strong>Q${index + 1}:</strong> ${q.text}`;
+            questionBlock.appendChild(title);
+
+            ["A", "B", "C", "D"].forEach((optionLetter) => {
+                const optionText = q[`option${optionLetter}`];
+                const label = document.createElement("label");
+                label.className = "option";
+                label.innerHTML =
+                    `<input type="radio" name="q_${q.questionId}" value="${optionLetter}"> ` +
+                    `${optionLetter}. ${optionText}`;
+                questionBlock.appendChild(label);
+            });
+
+            quizForm.appendChild(questionBlock);
+        });
+
+        quizForm.onchange = updateSubmitState;
+        updateSubmitState();
+    }
+
+    function updateSubmitState() {
+        const answered = currentQuestions.every((q) =>
+            quizForm.querySelector(`input[name="q_${q.questionId}"]:checked`)
+        );
+        submitBtn.disabled = !answered;
+    }
+
+    async function submitQuiz() {
+        clearError();
+        const answers = currentQuestions.map((q) => {
+            const selected = quizForm.querySelector(`input[name="q_${q.questionId}"]:checked`);
+            return {
+                questionId: q.questionId,
+                selectedOption: selected.value
+            };
+        });
+
+        const payload = {
+            lessonId: currentLesson.lessonId,
+            userId,
+            answers
+        };
+
+        try {
+            const response = await fetch("/api/quiz/submit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.message || "Submission failed.");
+            }
+            renderResults(result);
+        } catch (error) {
+            showError(error.message);
+        }
+    }
+
+    function renderResults(result) {
+        quizCard.classList.add("hidden");
+        resultCard.classList.remove("hidden");
+
+        scoreText.innerHTML = `<strong>Score:</strong> ${result.score} / ${result.total}`;
+
+        passFailBanner.className = "banner " + (result.passed ? "pass" : "fail");
+        passFailBanner.textContent = result.passed ? "PASS" : "FAIL";
+
+        breakPrompt.classList.toggle("hidden", !result.breakPromptTriggered);
+        breakPrompt.textContent = `🌿 ${result.message}`;
+
+        resultList.innerHTML = "";
+        result.results.forEach((item, idx) => {
+            const row = document.createElement("div");
+            row.className = "result-item";
+            const status = item.correct
+                ? `<span class="correct">✓ Correct</span>`
+                : `<span class="incorrect">✗ Incorrect</span> (Correct: ${item.correctOption})`;
+            row.innerHTML = `<strong>Question ${idx + 1}:</strong> ${status}`;
+            resultList.appendChild(row);
+        });
+    }
+
+    function showError(message) {
+        quizError.textContent = message;
+        quizError.classList.remove("hidden");
+    }
+
+    function clearError() {
+        quizError.textContent = "";
+        quizError.classList.add("hidden");
+    }
+</script>
+</body>
+</html>
