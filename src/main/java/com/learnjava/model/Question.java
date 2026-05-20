@@ -3,6 +3,7 @@ package com.learnjava.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Column;
 import jakarta.persistence.Table;
 
 @Entity
@@ -12,6 +13,7 @@ public class Question {
     @Id
     private Long id;
 
+    @Column(name = "lesson_id")
     private Long lessonId;
     private String text;
     @Column(name = "option_a")

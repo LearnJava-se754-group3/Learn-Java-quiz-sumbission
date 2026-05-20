@@ -2,8 +2,11 @@ package com.learnjava.service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -23,6 +26,8 @@ import com.learnjava.repository.UserProgressRepository;
 
 @Service
 public class QuizService {
+    private static final String INVALID_SUBMISSION_MESSAGE =
+            "Lesson not found or incorrect number of answers submitted.";
 
     private final LessonRepository lessonRepository;
     private final QuestionRepository questionRepository;
@@ -38,18 +43,13 @@ public class QuizService {
 
     @Transactional
     public QuizSubmissionResponse submitQuiz(QuizSubmissionRequest request) {
+        validateRequest(request);
         if (!lessonRepository.existsById(request.getLessonId())) {
             throw new LessonNotFoundException("Lesson not found: " + request.getLessonId());
         }
 
-        if (request.getAnswers() == null || request.getAnswers().size() != 5) {
-            throw new InvalidSubmissionException("Lesson not found or incorrect number of answers submitted.");
-        }
-
-        List<Question> questions = questionRepository.findByLessonId(request.getLessonId());
-
-        Map<Long, String> answerMap = request.getAnswers().stream()
-                .collect(Collectors.toMap(AnswerDto::getQuestionId, AnswerDto::getSelectedOption));
+        List<Question> questions = fetchAndValidateLessonQuestions(request.getLessonId());
+        Map<Long, String> answerMap = buildAndValidateAnswerMap(request.getAnswers(), questions);
 
         List<QuizResultItem> results = new ArrayList<>();
         int score = 0;
@@ -103,5 +103,42 @@ public class QuizService {
         response.setResults(results);
 
         return response;
+    }
+
+    private void validateRequest(QuizSubmissionRequest request) {
+        if (request == null || request.getLessonId() == null || request.getUserId() == null) {
+            throw new InvalidSubmissionException(INVALID_SUBMISSION_MESSAGE);
+        }
+        if (request.getAnswers() == null || request.getAnswers().size() != 5) {
+            throw new InvalidSubmissionException(INVALID_SUBMISSION_MESSAGE);
+        }
+    }
+
+    private List<Question> fetchAndValidateLessonQuestions(Long lessonId) {
+        List<Question> questions = questionRepository.findByLessonId(lessonId);
+        if (questions.size() != 5) {
+            throw new InvalidSubmissionException(INVALID_SUBMISSION_MESSAGE);
+        }
+        return questions;
+    }
+
+    private Map<Long, String> buildAndValidateAnswerMap(List<AnswerDto> answers, List<Question> questions) {
+        Map<Long, String> answerMap = new HashMap<>();
+        Set<Long> submittedQuestionIds = new HashSet<>();
+        for (AnswerDto answer : answers) {
+            if (answer == null || answer.getQuestionId() == null || answer.getSelectedOption() == null) {
+                throw new InvalidSubmissionException(INVALID_SUBMISSION_MESSAGE);
+            }
+            if (!submittedQuestionIds.add(answer.getQuestionId())) {
+                throw new InvalidSubmissionException(INVALID_SUBMISSION_MESSAGE);
+            }
+            answerMap.put(answer.getQuestionId(), answer.getSelectedOption());
+        }
+
+        Set<Long> lessonQuestionIds = questions.stream().map(Question::getId).collect(Collectors.toSet());
+        if (!submittedQuestionIds.equals(lessonQuestionIds)) {
+            throw new InvalidSubmissionException(INVALID_SUBMISSION_MESSAGE);
+        }
+        return answerMap;
     }
 }
