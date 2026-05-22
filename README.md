@@ -37,6 +37,28 @@ curl -X POST http://localhost:8080/api/quiz/submit \
 
 Exactly 5 answers required, one per question in the lesson. Wrong lesson ID or missing fields returns 400.
 
+## Performance testing
+
+Start the app first (`mvn spring-boot:run`), then run JMeter headlessly from your JMeter `bin` directory:
+
+**Windows**
+```bat
+jmeter.bat -n -t "path\to\repo\src\test\resources\performancetest\LearnJava_Performance_Test.jmx" -l "path\to\repo\src\test\resources\performancetest\results.csv"
+```
+
+**macOS / Linux**
+```bash
+./jmeter -n -t "path/to/repo/src/test/resources/performancetest/LearnJava_Performance_Test.jmx" -l "path/to/repo/src/test/resources/performancetest/results.csv"
+```
+
+Replace `path/to/repo` with the absolute path to this repository on your machine. Delete `results.csv` before re-running to avoid appending to old results.
+
+To open the test plan in the JMeter GUI instead:
+```bat
+jmeter.bat
+```
+Then **File → Open** and select `src/test/resources/performancetest/LearnJava_Performance_Test.jmx`.
+
 ## What gets saved
 
 Progress is stored in `USER_PROGRESS` — one row per user/lesson pair, updated on each submission. Streak is the total number of lessons a user has completed. Every even streak triggers a break prompt in the response.
